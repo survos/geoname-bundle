@@ -55,21 +55,21 @@ class GeoName
 
 
     /**
-     * @var float
+     * @var string
      *
      * @ORM\Column(name="feature_class", type="string", length=1, nullable=true)
      */
     protected $featureClass;
 
     /**
-     * @var float
+     * @var string
      *
      * @ORM\Column(name="feature_code", type="string", length=10, nullable=true)
      */
     protected $featureCode;
 
     /**
-     * @var float
+     * @var string
      *
      * @ORM\Column(name="country_code", type="string", length=2, nullable=true)
      */
@@ -263,7 +263,7 @@ class GeoName
 
     /**
      * @author Chris Bednarczyk <chris@tourradar.com>
-     * @return float
+     * @return string
      */
     public function getFeatureClass()
     {
@@ -272,7 +272,7 @@ class GeoName
 
     /**
      * @author Chris Bednarczyk <chris@tourradar.com>
-     * @param float $featureClass
+     * @param string $featureClass
      * @return GeoName
      */
     public function setFeatureClass($featureClass)
@@ -283,7 +283,7 @@ class GeoName
 
     /**
      * @author Chris Bednarczyk <chris@tourradar.com>
-     * @return float
+     * @return string
      */
     public function getFeatureCode()
     {
@@ -292,7 +292,7 @@ class GeoName
 
     /**
      * @author Chris Bednarczyk <chris@tourradar.com>
-     * @param float $featureCode
+     * @param string $featureCode
      * @return GeoName
      */
     public function setFeatureCode($featureCode)

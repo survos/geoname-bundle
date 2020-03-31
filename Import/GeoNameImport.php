@@ -88,7 +88,7 @@ class GeoNameImport implements ImportInterface
 
         $dbType = $connection->getDatabasePlatform()->getName();
 
-        $connection->exec("START TRANSACTION");
+        $connection->exec( ($dbType == 'sqlite' ? 'BEGIN' : 'START') . " TRANSACTION");
 
         $pos = 0;
 
@@ -189,6 +189,12 @@ class GeoNameImport implements ImportInterface
      */
     public function insertToReplace(QueryBuilder $insertSQL, $dbType)
     {
+        // sqlite only supports INSERT
+        if ($dbType == "sqlite") {
+            $sql =  $insertSQL->getSQL();
+            return $sql;
+        }
+
         if ($dbType == "mysql") {
             $sql = $insertSQL->getSQL();
             return preg_replace('/' . preg_quote('INSERT ', '/') . '/', 'REPLACE ', $sql, 1);
