@@ -146,41 +146,58 @@ class ImportCommand extends Command implements ContainerAwareInterface
 
 
         //timezones
-        $timezones = $input->getOption('timezones');
-        $timezonesLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($timezones);
+        if ($timezones = $input->getOption('timezones'))
+        {
+            $timezonesLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($timezones);
 
-        $this->downloadWithProgressBar(
-            $timezones,
-            $timezonesLocal,
-            $output
-        )->wait();
-        $output->writeln('');
+            $this->downloadWithProgressBar(
+                $timezones,
+                $timezonesLocal,
+                $output
+            )->wait();
+            $output->writeln('');
+
+            $this->importWithProgressBar(
+                $this->getContainer()->get("bordeux.geoname.import.timezone"),
+                $timezonesLocal,
+                "Importing timezones",
+                $output
+            )->wait();
+
+            $output->writeln('');
+
+        }
 
 
         // country-info
-        $countryInfo = $input->getOption('country-info');
-        $countryInfoLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($countryInfo);
+        if ($countryInfo = $input->getOption('country-info'))
+        {
+            $countryInfoLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($countryInfo);
 
-        $this->downloadWithProgressBar(
-            $countryInfo,
-            $countryInfoLocal,
-            $output
-        )->wait();
-        $output->writeln('');
+            $this->downloadWithProgressBar(
+                $countryInfo,
+                $countryInfoLocal,
+                $output
+            )->wait();
+            $output->writeln('');
+
+            //countries import
+            $this->importWithProgressBar(
+                $this->getContainer()->get("bordeux.geoname.import.country"),
+                $countryInfoLocal,
+                "Importing Countries",
+                $output
+            )->wait();
+
+        } else {
+            $output->write("Skipping country-info");
+        }
 
 
         //importing
 
         $output->writeln('');
 
-        $this->importWithProgressBar(
-            $this->getContainer()->get("bordeux.geoname.import.timezone"),
-            $timezonesLocal,
-            "Importing timezones",
-            $output
-        )->wait();
-
-        $output->writeln('');
 
         if (!$input->getOption("skip-admin1")) {
             // admin1
@@ -208,7 +225,6 @@ class ImportCommand extends Command implements ContainerAwareInterface
         if (!$input->getOption("skip-admin2")) {
             $admin2 = $input->getOption('admin2-codes');
             $admin2Local = $downloadDir . DIRECTORY_SEPARATOR . basename($admin2);
-
 
             $this->downloadWithProgressBar(
                 $admin2,
@@ -252,15 +268,6 @@ class ImportCommand extends Command implements ContainerAwareInterface
 
             $output->writeln("");
         }
-
-        //countries import
-        $this->importWithProgressBar(
-            $this->getContainer()->get("bordeux.geoname.import.country"),
-            $countryInfoLocal,
-            "Importing Countries",
-            $output
-        )->wait();
-
 
 
         if (!$input->getOption("skip-hierarchy")) {
@@ -308,9 +315,12 @@ class ImportCommand extends Command implements ContainerAwareInterface
      */
     public function importWithProgressBar(ImportInterface $importer, $file, $message, OutputInterface $output, $steps = 100)
     {
-        $progress = new ProgressBar($output, $steps);
+        // get the number of lines
+        $lineCount = exec("wc -l  < $file");
+        $steps = $lineCount;
+        $progress = new ProgressBar($output, $lineCount);
         $progress->setFormat(self::PROGRESS_FORMAT);
-        $progress->setMessage($message);
+        $progress->setMessage($message . ' ' . $file);
         $progress->setRedrawFrequency(1);
         $progress->start();
 
