@@ -5,6 +5,8 @@ namespace Bordeux\Bundle\GeoNameBundle\Command;
 
 use Bordeux\Bundle\GeoNameBundle\Import\CountryImport;
 use Bordeux\Bundle\GeoNameBundle\Import\ImportInterface;
+use Bordeux\Bundle\GeoNameBundle\Repository\AdministrativeRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Psr7\Uri;
@@ -14,6 +16,7 @@ use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 
@@ -28,6 +31,17 @@ class ImportCommand extends Command implements ContainerAwareInterface
     use ContainerAwareTrait;
 
     /**
+     * @var EntityManagerInterface
+    private $em;
+
+    public function __construct(EntityManagerInterface $em, string $name = null)
+    {
+        parent::__construct($name);
+        $this->em = $em;
+    }
+     */
+
+    /**
      *
      */
     const PROGRESS_FORMAT = '%current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% Mem: %memory:6s% %message%';
@@ -36,20 +50,55 @@ class ImportCommand extends Command implements ContainerAwareInterface
     {
         return $this->container;
     }
+
+    private function getFilesToDownload($countries)
+    {
+        // download the files first, then import them.
+        $filesToDownload = [
+            'timeZones.txt',
+            'admin1CodesASCII.txt',
+            'admin2Codes.txt',
+            'hierarchy.zip',
+            'iso-languagecodes.txt',
+            'countryInfo.txt'
+        ];
+
+        foreach (explode(',', $countries) as $country) {
+            array_push($filesToDownload, trim($country) . '.zip');
+        }
+
+        return $filesToDownload;
+
+    }
     /**
      * Configuration method
      */
     protected function configure()
     {
 
+
         $this
             ->setName('bordeux:geoname:import')
+            ->addOption(
+                'source',
+                's',
+                InputOption::VALUE_OPTIONAL,
+                "Source URL for geoname download",
+                'http://download.geonames.org/export/dump/'
+            )
             ->addOption(
                 'archive',
                 'a',
                 InputOption::VALUE_OPTIONAL,
                 "Archive to GeoNames",
-                'http://download.geonames.org/export/dump/allCountries.zip'
+                'allCountries.zip'
+            )
+            ->addOption(
+                'countries',
+                'c',
+                InputOption::VALUE_OPTIONAL,
+                "Country codes, comma-delimited e.g. US, CA, MX",
+                'MX'
             )
             ->addOption(
                 'timezones',
@@ -109,15 +158,13 @@ class ImportCommand extends Command implements ContainerAwareInterface
             ->addOption(
                 "skip-admin2",
                 null,
-                InputOption::VALUE_OPTIONAL,
-                '',
-                false)
+                InputOption::VALUE_NONE,
+                'Skip importing admin2')
             ->addOption(
                 "skip-geoname",
                 null,
-                InputOption::VALUE_OPTIONAL,
-                '',
-                false)
+                InputOption::VALUE_NONE,
+                'Skip the geoname import')
             ->addOption(
                 "skip-hierarchy",
                 null,
@@ -136,26 +183,56 @@ class ImportCommand extends Command implements ContainerAwareInterface
     protected function execute(InputInterface $input, OutputInterface $output)
     {
 
+        $io = new SymfonyStyle($input, $output);
         $downloadDir = $input->getOption('download-dir') ?: $this->getContainer()->getParameter("kernel.cache_dir") . DIRECTORY_SEPARATOR . 'bordeux/geoname';
 
-
         !file_exists($downloadDir) && mkdir($downloadDir, 0700, true);
-
-
         $downloadDir = realpath($downloadDir);
 
+        $filesToDownload = $this->getFilesToDownload($input->getOption('countries'));
+        foreach ($filesToDownload as $filename) {
+            $remoteFile = $input->getOption('source') . $filename;
+            $localfile = $downloadDir . DIRECTORY_SEPARATOR . basename($filename);
+            if (file_exists($localfile)) {
+                $io->warning("$localfile in cache");
+            } else {
+                $this->downloadWithProgressBar(
+                    $remoteFile,
+                    $localfile,
+                    $output
+                )->wait();
+                $io->success($localfile . " downloaded.");
+            }
+        }
+        $io->writeln('Finished downloading');
 
-        //timezones
-        if ($timezones = $input->getOption('timezones'))
-        {
-            $timezonesLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($timezones);
+        if (!$input->getOption("skip-admin1")) {
+            // admin1
+            $admin1 = $input->getOption('admin1-codes');
+            $admin1Local = $downloadDir . DIRECTORY_SEPARATOR . basename($admin1);
 
             $this->downloadWithProgressBar(
-                $timezones,
-                $timezonesLocal,
+                $admin1,
+                $admin1Local,
                 $output
             )->wait();
             $output->writeln('');
+
+            $this->importWithProgressBar(
+                $this->getContainer()->get("bordeux.geoname.import.administrative"),
+                $admin1Local,
+                "Importing administrative 1 to Admininstrative ",
+                $output
+            )->wait();
+
+            $output->writeln('');
+        }
+
+        //timezones
+
+        if ($timezones = $input->getOption('timezones'))
+        {
+            $timezonesLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($timezones);
 
             $this->importWithProgressBar(
                 $this->getContainer()->get("bordeux.geoname.import.timezone"),
@@ -173,13 +250,6 @@ class ImportCommand extends Command implements ContainerAwareInterface
         if ($countryInfo = $input->getOption('country-info'))
         {
             $countryInfoLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($countryInfo);
-
-            $this->downloadWithProgressBar(
-                $countryInfo,
-                $countryInfoLocal,
-                $output
-            )->wait();
-            $output->writeln('');
 
             //countries import
             $this->importWithProgressBar(
@@ -199,27 +269,6 @@ class ImportCommand extends Command implements ContainerAwareInterface
         $output->writeln('');
 
 
-        if (!$input->getOption("skip-admin1")) {
-            // admin1
-            $admin1 = $input->getOption('admin1-codes');
-            $admin1Local = $downloadDir . DIRECTORY_SEPARATOR . basename($admin1);
-
-            $this->downloadWithProgressBar(
-                $admin1,
-                $admin1Local,
-                $output
-            )->wait();
-            $output->writeln('');
-
-            $this->importWithProgressBar(
-                $this->getContainer()->get("bordeux.geoname.import.administrative"),
-                $admin1Local,
-                "Importing administrative 1",
-                $output
-            )->wait();
-
-            $output->writeln('');
-        }
 
 
         if (!$input->getOption("skip-admin2")) {
@@ -239,12 +288,10 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 "Importing administrative 2",
                 $output
             )->wait();
-
-
-            $output->writeln('');
+            $output->writeln('Administative Table Loaded, Geoname IDs are invalid until Geonames is loaded.');
         }
 
-
+        // moved above admin and countries for testing!
         if (!$input->getOption("skip-geoname")) {
             // archive
             $archive = $input->getOption('archive');
@@ -257,8 +304,16 @@ class ImportCommand extends Command implements ContainerAwareInterface
             )->wait();
             $output->writeln('');
 
+            $importService = $this->getContainer()->get("bordeux.geoname.import.geoname");
+
+            $importService->setFilters([
+                // 'featureCode' => ['PPL']
+                // 'featureClass' => ['P', 'A', 'V'],
+            ]);
+
+
             $this->importWithProgressBar(
-                $this->getContainer()->get("bordeux.geoname.import.geoname"),
+                $importService,
                 $archiveLocal,
                 "Importing GeoNames",
                 $output,
@@ -274,13 +329,6 @@ class ImportCommand extends Command implements ContainerAwareInterface
             // archive
             $archive = $input->getOption('hierarchy');
             $archiveLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($archive);
-
-            $this->downloadWithProgressBar(
-                $archive,
-                $archiveLocal,
-                $output
-            )->wait();
-            $output->writeln('');
 
             $this->importWithProgressBar(
                 $this->getContainer()->get("bordeux.geoname.import.hierarchy"),

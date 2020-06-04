@@ -18,8 +18,6 @@ use SplFileObject;
 class HierarchyImport extends GeoNameImport
 {
 
-
-
     /**
      * @param string $filePath
      * @param callable|null $progress
@@ -58,7 +56,7 @@ class HierarchyImport extends GeoNameImport
 
         $dbType = $connection->getDatabasePlatform()->getName();
 
-        $connection->exec("START TRANSACTION");
+        $connection->exec( ($dbType == 'sqlite' ? 'BEGIN' : 'START') . " TRANSACTION");
 
         $pos = 0;
 

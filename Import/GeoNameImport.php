@@ -4,8 +4,12 @@
 namespace Bordeux\Bundle\GeoNameBundle\Import;
 
 
+use Bordeux\Bundle\GeoNameBundle\Entity\Administrative;
+use Bordeux\Bundle\GeoNameBundle\Entity\GeoName;
 use Bordeux\Bundle\GeoNameBundle\Entity\Timezone;
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\DBAL\Query\QueryBuilder;
+use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\EntityManager;
 use GuzzleHttp\Promise\Promise;
 use SplFileObject;
@@ -18,19 +22,41 @@ use SplFileObject;
 class GeoNameImport implements ImportInterface
 {
 
+    private $filters;
     /**
      * @var EntityManager
      */
-    protected $em;
+    public $em;
 
     /**
      * TimeZoneImport constructor.
      * @author Chris Bednarczyk <chris@tourradar.com>
      * @param EntityManager $em
      */
-    public function __construct(EntityManager $em)
+
+    /**
+     * @param string $entityClass The class name of the entity this repository manages
+     */
+    public function __construct(ManagerRegistry $registry, $entityClass=GeoName::class)
     {
-        $this->em = $em;
+        $this->em = $registry->getManagerForClass($entityClass);
+
+        if ($this->em === null) {
+            throw new \LogicException(sprintf(
+                'Could not find the entity manager for class "%s". Check your Doctrine configuration to make sure it is configured to load this entity’s metadata.',
+                $entityClass
+            ));
+        }
+        $this->filters = [];
+    }
+
+
+    public function getEntityManager() {
+        return $this->em;
+    }
+
+    public function setFilters($filters) {
+        $this->filters = $filters;
     }
 
 
@@ -88,6 +114,21 @@ class GeoNameImport implements ImportInterface
 
         $dbType = $connection->getDatabasePlatform()->getName();
 
+        // get the IDs from the admin table
+        $q = $this->em->getRepository(Administrative::class)
+            ->createQueryBuilder('a')
+            ->select(['a.id', 'a.code'])
+            ->getQuery()
+            ->getResult();
+        $codesById = [];
+        foreach ($q as $x) {
+            // $idsByCode[$x->code] = $x->id;
+            $codesById[$x['id']] = $x['code'];
+        }
+        $administrativeGeonameIds = array_keys($codesById);
+        unset($q);
+
+
         $connection->exec( ($dbType == 'sqlite' ? 'BEGIN' : 'START') . " TRANSACTION");
 
         $pos = 0;
@@ -136,40 +177,76 @@ class GeoNameImport implements ImportInterface
             }
 
 
+            $geoNameId = (int)$geoNameId;
             $data = [
-                $fieldsNames['id'] => (int)$geoNameId, //must be as first!
+                $fieldsNames['id'] => $geoNameId, //must be as first!
                 $fieldsNames['name'] => $this->e($name),
                 $fieldsNames['asciiName'] => $this->e($asciiName),
-                $fieldsNames['latitude'] => $this->e($latitude),
-                $fieldsNames['longitude'] => $this->e($longitude),
+                $fieldsNames['latitude'] => $latitude,
+                $fieldsNames['longitude'] => $longitude,
                 $fieldsNames['featureClass'] => $this->e($featureClass),
                 $fieldsNames['featureCode'] => $this->e($featureCode),
                 $fieldsNames['countryCode'] => $this->e($countryCode),
                 $fieldsNames['cc2'] => $this->e($cc2),
-                $fieldsNames['population'] => $this->e($population),
+                $fieldsNames['population'] => $population,
                 $fieldsNames['elevation'] => $this->e($elevation),
-                $fieldsNames['dem'] => $this->e($dem),
-                $fieldsNames['modificationDate'] => $this->e($modificationDate),
+                $fieldsNames['dem'] => $dem,
+                // we don't really care about this.. $fieldsNames['modificationDate'] => $this->e($modificationDate),
+
+                // loads doctrine relationships from Administrative entity.  Could be cached.
                 $fieldsNames['timezone'] => $timezone ? "(SELECT id FROM {$timezoneTableName} WHERE timezone  =  " . $this->e($timezone) . " LIMIT 1)" : 'NULL',
                 $fieldsNames['admin1'] => $admin1Code ? "(SELECT id FROM {$administrativeTableName} WHERE code  =  " . $this->e("{$countryCode}.{$admin1Code}") . " LIMIT 1)" : 'NULL',
                 $fieldsNames['admin2'] => $admin2Code ? "(SELECT id FROM {$administrativeTableName} WHERE code  =  " . $this->e("{$countryCode}.{$admin1Code}.{$admin2Code}") . " LIMIT 1)" : 'NULL',
                 $fieldsNames['admin3'] => $admin3Code ? "(SELECT id FROM {$administrativeTableName} WHERE code  =  " . $this->e("{$countryCode}.{$admin1Code}.{$admin3Code}") . " LIMIT 1)" : 'NULL',
                 $fieldsNames['admin4'] => $admin4Code ? "(SELECT id FROM {$administrativeTableName} WHERE code  =  " . $this->e("{$countryCode}.{$admin1Code}.{$admin4Code}") . " LIMIT 1)" : 'NULL',
-            ];
+                ];
 
+            $accept = true;
+            foreach ($this->filters as $var => $values) {
+                if ($values && count($values)) {
+                    switch ($var) {
+                        case 'featureCode':
+                            if (!in_array($featureCode, $values)) {
+                                $accept = false;
+                            }
+                            break;
+                        case 'featureClass':
+                            if (!in_array($featureClass, $values)) {
+                                $accept = false;
+                            }
+                            break;
+                        default:
+                            dd("Invalid filter " . $var);
+                    }
+                }
+            }
 
+            // always get the geoName IDS
+            if (in_array($geoNameId, $administrativeGeonameIds)) {
+                $accept = true;
+                $data['admin_code'] = $this->e($codesById[$geoNameId]); // move over the admin code
+                /*
+                $query = $queryBuilder->values($data);
+                $sql = $this->insertToReplace($query, $dbType);
+                dd($data, $sql);
+                */
+            }
 
-
-            $query = $queryBuilder->values($data);
-
-
-            $buffer[] = $this->insertToReplace($query, $dbType);
+            if ($accept) {
+                // dd($data, 'ACCEPT');
+                $query = $queryBuilder->values($data);
+                $buffer[] = $this->insertToReplace($query, $dbType);
+            } else {
+                // reject
+                // dump($this->filters, $featureCode, $values, $data, 'REJECT');
+            }
 
             $pos++;
-
-            if ($pos % $batchSize) {
-                $this->save($buffer);
-                $buffer = [];
+            if ( ($pos % $batchSize) == 0) {
+                if (count($buffer)) {
+                    $this->save($buffer);
+                    $buffer = [];
+                }
                 is_callable($progress) && $progress(($pos) / $max);
             }
 
@@ -189,13 +266,8 @@ class GeoNameImport implements ImportInterface
      */
     public function insertToReplace(QueryBuilder $insertSQL, $dbType)
     {
-        // sqlite only supports INSERT
-        if ($dbType == "sqlite") {
-            $sql =  $insertSQL->getSQL();
-            return $sql;
-        }
 
-        if ($dbType == "mysql") {
+        if ( in_array($dbType,  ['sqlite', 'mysql'])) {
             $sql = $insertSQL->getSQL();
             return preg_replace('/' . preg_quote('INSERT ', '/') . '/', 'REPLACE ', $sql, 1);
         }

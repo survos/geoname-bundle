@@ -75,6 +75,31 @@ class GeoName
      */
     protected $countryCode;
 
+    /**
+     * when this name is also an administative area, add the code here, so we don't need the administative table for the lookups.
+     * @var string
+     *
+     * @ORM\Column(name="admin_code", type="string", length=30, nullable=true)
+     */
+    protected $administrativeCode;
+
+    /**
+     * @return string
+     */
+    public function getAdministrativeCode(): ?string
+    {
+        return $this->administrativeCode;
+    }
+
+    /**
+     * @param string $administrativeCode
+     * @return GeoName
+     */
+    public function setAdministrativeCode(string $administrativeCode): GeoName
+    {
+        $this->administrativeCode = $administrativeCode;
+        return $this;
+    }
 
     /**
      * @var Country
@@ -85,7 +110,7 @@ class GeoName
     protected $country;
 
     /**
-     * @var float
+     * @var string
      *
      * @ORM\Column(name="cc2", type="string", length=200, nullable=true)
      */
@@ -166,7 +191,7 @@ class GeoName
     /**
      * @var Hierarchy[]
      *
-     * @ORM\OneToMany(targetEntity="Bordeux\Bundle\GeoNameBundle\Entity\Hierarchy", mappedBy="child")
+     * @ORM\OneToMany(targetEntity="Bordeux\Bundle\GeoNameBundle\Entity\Hierarchy", mappedBy="child", fetch="EXTRA_LAZY")
      */
     protected $parents;
 
@@ -332,10 +357,10 @@ class GeoName
 
     /**
      * @author Chris Bednarczyk <chris@tourradar.com>
-     * @param float $cc2
+     * @param string $cc2
      * @return GeoName
      */
-    public function setCc2($cc2)
+    public function setCc2(string  $cc2)
     {
         $this->cc2 = $cc2;
         return $this;
@@ -475,7 +500,7 @@ class GeoName
      * @param int $dem
      * @return GeoName
      */
-    public function setDem($dem)
+    public function setDem(?int $dem)
     {
         $this->dem = $dem;
         return $this;
@@ -530,7 +555,10 @@ class GeoName
         return $this->country;
     }
 
-
+    public function __toString()
+    {
+        return $this->getName();
+    }
 
 
 }

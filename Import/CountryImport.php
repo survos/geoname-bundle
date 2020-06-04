@@ -7,6 +7,7 @@ namespace Bordeux\Bundle\GeoNameBundle\Import;
 use Bordeux\Bundle\GeoNameBundle\Entity\Administrative;
 use Bordeux\Bundle\GeoNameBundle\Entity\Country;
 use Bordeux\Bundle\GeoNameBundle\Entity\Timezone;
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\ORM\EntityManager;
 use GuzzleHttp\Promise\Promise;
 use SplFileObject;
@@ -16,22 +17,12 @@ use SplFileObject;
  * @author Chris Bednarczyk <chris@tourradar.com>
  * @package Bordeux\Bundle\GeoNameBundle\Import
  */
-class CountryImport implements ImportInterface
+class CountryImport extends GeoNameImport implements ImportInterface
 {
 
-    /**
-     * @var EntityManager
-     */
-    protected $em;
-
-    /**
-     * TimeZoneImport constructor.
-     * @author Chris Bednarczyk <chris@tourradar.com>
-     * @param EntityManager $em
-     */
-    public function __construct(EntityManager $em)
+    public function __construct(ManagerRegistry $registry)
     {
-        $this->em = $em;
+        parent::__construct($registry, Country::class);
     }
 
 

@@ -45,10 +45,35 @@ class Administrative
     /**
      * @var GeoName
      *
-     * @ORM\ManyToOne(targetEntity="Bordeux\Bundle\GeoNameBundle\Entity\GeoName")
-     * @ORM\JoinColumn(name="geoname_id", referencedColumnName="id", nullable=true)
+     * @ ORM\ManyToOne(targetEntity="Bordeux\Bundle\GeoNameBundle\Entity\GeoName")
+     * @ ORM\JoinColumn(name="geoname_id", referencedColumnName="id", nullable=true)
      */
     protected $geoName;
+
+    /**
+    /**
+     * @ ORM\Column(name="geo_name_id", type="integer", nullable=true)
+     *
+     **/
+    private $geoNameId;
+
+    /**
+     * @return mixed
+     */
+    public function getGeoNameId()
+    {
+        return $this->geoNameId;
+    }
+
+    /**
+     * @param mixed $geoNameId
+     * @return Administrative
+     */
+    public function setGeoNameId($geoNameId)
+    {
+        $this->geoNameId = $geoNameId;
+        return $this;
+    }
 
 
     /**
@@ -127,7 +152,7 @@ class Administrative
      * @author Chris Bednarczyk <chris@tourradar.com>
      * @return GeoName
      */
-    public function getGeoName()
+    public function getGeoName(): GeoName
     {
         return $this->geoName;
     }
@@ -137,7 +162,7 @@ class Administrative
      * @param GeoName $geoName
      * @return Administrative
      */
-    public function setGeoName($geoName)
+    public function setGeoName(GeoName $geoName)
     {
         $this->geoName = $geoName;
         return $this;
