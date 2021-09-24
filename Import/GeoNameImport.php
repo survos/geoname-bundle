@@ -5,8 +5,10 @@ namespace Bordeux\Bundle\GeoNameBundle\Import;
 
 
 use Bordeux\Bundle\GeoNameBundle\Entity\Timezone;
+use Doctrine\Bundle\DoctrineBundle\Registry;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Promise\Promise;
 use SplFileObject;
 
@@ -28,30 +30,11 @@ class GeoNameImport implements ImportInterface
      * @author Chris Bednarczyk <chris@tourradar.com>
      * @param EntityManager $em
      */
-    public function __construct(EntityManager $em)
+    public function __construct(EntityManagerInterface $em)
     {
         $this->em = $em;
     }
 
-
-    /**
-     * @param  string $filePath
-     * @param callable|null $progress
-     * @return Promise|\GuzzleHttp\Promise\PromiseInterface
-     * @author Chris Bednarczyk <chris@tourradar.com>
-     */
-    public function import($filePath, callable $progress = null)
-    {
-        $self = $this;
-        /** @var Promise $promise */
-        $promise = (new Promise(function () use ($filePath, $progress, $self, &$promise) {
-            $promise->resolve(
-                $self->_import($filePath, $progress)
-            );
-        }));
-
-        return $promise;
-    }
 
     /**
      * @param string $filePath
@@ -59,7 +42,7 @@ class GeoNameImport implements ImportInterface
      * @return bool
      * @author Chris Bednarczyk <chris@tourradar.com>
      */
-    protected function _import($filePath, callable $progress = null)
+    public function import($filePath, callable $progress = null): bool
     {
 
         $avrOneLineSize = 29.4;
@@ -107,6 +90,7 @@ class GeoNameImport implements ImportInterface
             }
 
             $row = array_map('trim', $csv);
+            dd($row, $csv);
 
             list(
                 $geoNameId,
@@ -221,8 +205,9 @@ class GeoNameImport implements ImportInterface
      */
     public function save($queries)
     {
+        assert(count($queries) > 1, "no queries!");
         $queries = implode("; \n", $queries);
-        $this->em->getConnection()->exec($queries);
+        $this->em->getConnection()->executeStatement($queries);
 
         return true;
     }

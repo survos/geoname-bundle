@@ -3,19 +3,22 @@
 namespace Bordeux\Bundle\GeoNameBundle\Command;
 
 
+use Bordeux\Bundle\GeoNameBundle\Import\AdministrativeImport;
 use Bordeux\Bundle\GeoNameBundle\Import\CountryImport;
+use Bordeux\Bundle\GeoNameBundle\Import\HierarchyImport;
 use Bordeux\Bundle\GeoNameBundle\Import\ImportInterface;
-use GuzzleHttp\Client;
-use GuzzleHttp\Promise\Promise;
-use GuzzleHttp\Psr7\Uri;
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+
+use Symfony\Component\DependencyInjection\ContainerAwareInterface;
+use Symfony\Component\DependencyInjection\ContainerAwareTrait;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpClient\HttpClient;
+
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
-use Symfony\Component\DependencyInjection\ContainerAwareTrait;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Class VisitQueueCommand
@@ -25,6 +28,16 @@ use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 class ImportCommand extends Command implements ContainerAwareInterface
 {
 
+    private HierarchyImport $hierarchyImport;
+
+    public function __construct(
+        HierarchyImport $hierarchyImport, string $name = null)
+    {
+
+        parent::__construct($name);
+        $this->hierarchyImport = $hierarchyImport;
+    }
+
     use ContainerAwareTrait;
 
     /**
@@ -32,7 +45,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
      */
     const PROGRESS_FORMAT = '%current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% Mem: %memory:6s% %message%';
 
-    private function getContainer()
+    private function getContainer(): ContainerInterface
     {
         return $this->container;
     }
@@ -100,6 +113,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 "Download dir",
                 null
             )
+            ->addOption('countries', null, InputOption::VALUE_NEGATABLE, 'import counries-info', false)
             ->addOption(
                 "skip-admin1",
                 null,
@@ -136,7 +150,8 @@ class ImportCommand extends Command implements ContainerAwareInterface
     protected function execute(InputInterface $input, OutputInterface $output)
     {
 
-        $downloadDir = $input->getOption('download-dir') ?: $this->getContainer()->getParameter("kernel.cache_dir") . DIRECTORY_SEPARATOR . 'bordeux/geoname';
+        $downloadDir = $input->getOption('download-dir') ?:
+            $this->getContainer()->getParameter("kernel.cache_dir") . DIRECTORY_SEPARATOR . 'bordeux/geoname';
 
 
         !file_exists($downloadDir) && mkdir($downloadDir, 0700, true);
@@ -153,36 +168,47 @@ class ImportCommand extends Command implements ContainerAwareInterface
             $timezones,
             $timezonesLocal,
             $output
-        )->wait();
-        $output->writeln('');
+        );
 
 
         // country-info
-        $countryInfo = $input->getOption('country-info');
-        $countryInfoLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($countryInfo);
+        if ($input->getOption('countries')) {
+            $countryInfo = $input->getOption('country-info');
+            $countryInfoLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($countryInfo);
 
-        $this->downloadWithProgressBar(
-            $countryInfo,
-            $countryInfoLocal,
-            $output
-        )->wait();
-        $output->writeln('');
+            $this->downloadWithProgressBar(
+                $countryInfo,
+                $countryInfoLocal,
+                $output
+            );
 
+            //countries import
+            $this->importWithProgressBar(
+                $this->getContainer()->get("bordeux.geoname.import.country"),
+                $countryInfoLocal,
+                "Importing Countries",
+                $output
+            );
+
+
+
+        }
 
         //importing
 
         $output->writeln('');
 
-        $this->importWithProgressBar(
-            $this->getContainer()->get("bordeux.geoname.import.timezone"),
-            $timezonesLocal,
-            "Importing timezones",
-            $output
-        )->wait();
-
-        $output->writeln('');
+//        $this->importWithProgressBar(
+//            $this->getContainer()->get("bordeux.geoname.import.timezone"),
+//            $timezonesLocal,
+//            "Importing timezones",
+//            $output
+//        );
+//
+//        $output->writeln('');
 
         if (!$input->getOption("skip-admin1")) {
+            $output->writeln('admin1');
             // admin1
             $admin1 = $input->getOption('admin1-codes');
             $admin1Local = $downloadDir . DIRECTORY_SEPARATOR . basename($admin1);
@@ -191,15 +217,14 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 $admin1,
                 $admin1Local,
                 $output
-            )->wait();
-            $output->writeln('');
+            );
 
             $this->importWithProgressBar(
                 $this->getContainer()->get("bordeux.geoname.import.administrative"),
                 $admin1Local,
                 "Importing administrative 1",
                 $output
-            )->wait();
+            );
 
             $output->writeln('');
         }
@@ -214,7 +239,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 $admin2,
                 $admin2Local,
                 $output
-            )->wait();
+            );
             $output->writeln('');
 
             $this->importWithProgressBar(
@@ -222,7 +247,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 $admin2Local,
                 "Importing administrative 2",
                 $output
-            )->wait();
+            );
 
 
             $output->writeln('');
@@ -238,7 +263,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 $archive,
                 $archiveLocal,
                 $output
-            )->wait();
+            );
             $output->writeln('');
 
             $this->importWithProgressBar(
@@ -247,20 +272,11 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 "Importing GeoNames",
                 $output,
                 1000
-            )->wait();
+            );
 
 
             $output->writeln("");
         }
-
-        //countries import
-        $this->importWithProgressBar(
-            $this->getContainer()->get("bordeux.geoname.import.country"),
-            $countryInfoLocal,
-            "Importing Countries",
-            $output
-        )->wait();
-
 
 
         if (!$input->getOption("skip-hierarchy")) {
@@ -272,16 +288,16 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 $archive,
                 $archiveLocal,
                 $output
-            )->wait();
+            );
             $output->writeln('');
 
             $this->importWithProgressBar(
-                $this->getContainer()->get("bordeux.geoname.import.hierarchy"),
+                $this->hierarchyImport,
                 $archiveLocal,
                 "Importing Hierarchy",
                 $output,
                 1000
-            )->wait();
+            );
 
 
             $output->writeln("");
@@ -303,10 +319,9 @@ class ImportCommand extends Command implements ContainerAwareInterface
      * @param string $message
      * @param OutputInterface $output
      * @param int $steps
-     * @return \GuzzleHttp\Promise\Promise|\GuzzleHttp\Promise\PromiseInterface
      * @author Chris Bednarczyk <chris@tourradar.com>
      */
-    public function importWithProgressBar(ImportInterface $importer, $file, $message, OutputInterface $output, $steps = 100)
+    public function importWithProgressBar(ImportInterface $importer, $file, $message, OutputInterface $output, $steps = 100): bool
     {
         $progress = new ProgressBar($output, $steps);
         $progress->setFormat(self::PROGRESS_FORMAT);
@@ -314,14 +329,15 @@ class ImportCommand extends Command implements ContainerAwareInterface
         $progress->setRedrawFrequency(1);
         $progress->start();
 
-        return $importer->import(
+        if ($result = $importer->import(
             $file,
             function ($percent) use ($progress, $steps) {
                 $progress->setProgress((int)($percent * $steps));
             }
-        )->then(function () use ($progress) {
+        )) {
             $progress->finish();
-        });
+        }
+        return $result;
     }
 
 
@@ -335,39 +351,24 @@ class ImportCommand extends Command implements ContainerAwareInterface
     public function downloadWithProgressBar($url, $saveAs, OutputInterface $output)
     {
         if (file_exists($saveAs)) {
-            $output->writeln($saveAs . " exists in the cache.");
+            $output->writeln(pathinfo($saveAs, PATHINFO_FILENAME) . " exists in the cache.");
+        } else {
+            $progress = new ProgressBar($output, 100);
+            $progress->setFormat(self::PROGRESS_FORMAT);
+            $progress->setMessage("Start downloading {$url}");
+            $progress->setRedrawFrequency(1);
+            $progress->start();
 
-            $promise = new Promise();
-            $promise->then(
-            // $onFulfilled
-                function ($value) {
-                    echo 'The promise was fulfilled.';
-                },
-                // $onRejected
-                function ($reason) {
-                    echo 'The promise was rejected.';
+            $this->download(
+                $url,
+                $saveAs,
+                function ($percent) use ($progress) {
+                    $progress->setProgress((int)($percent * 100));
                 }
             );
-
-            $promise->resolve("In cache!");
-            return $promise;
+            $progress->finish();
         }
 
-        $progress = new ProgressBar($output, 100);
-        $progress->setFormat(self::PROGRESS_FORMAT);
-        $progress->setMessage("Start downloading {$url}");
-        $progress->setRedrawFrequency(1);
-        $progress->start();
-
-        return $this->download(
-            $url,
-            $saveAs,
-            function ($percent) use ($progress) {
-                $progress->setProgress((int)($percent * 100));
-            }
-        )->then(function () use ($progress) {
-            $progress->finish();
-        });
 
     }
 
@@ -376,23 +377,20 @@ class ImportCommand extends Command implements ContainerAwareInterface
      * @param string $url
      * @param string $output
      * @param callable $progress
-     * @return \GuzzleHttp\Promise\PromiseInterface
      * @author Chris Bednarczyk <chris@tourradar.com>
      */
     public function download($url, $saveAs, callable $progress)
     {
-        $client = new Client([]);
+        $client = HttpClient::create();
+        $response = $client->request('GET', $url, [
+            'on_progress' => function (int $downloadedSize, int $totalSize, array $info) use ($progress): void {
+                $totalSize && is_callable($progress) && $progress($downloadedSize / $totalSize);
+            },
+        ]);
 
-        $promise = $client->getAsync(
-            new Uri($url),
-            [
-                'progress' => function ($totalSize, $downloadedSize) use ($progress) {
-                    $totalSize && is_callable($progress) && $progress($downloadedSize / $totalSize);
-                },
-                'save_to' => $saveAs
-            ]
-        );
-
-        return $promise;
+        $fileHandler = fopen($saveAs, 'w');
+        foreach ($client->stream($response) as $chunk) {
+            fwrite($fileHandler, $chunk->getContent());
+        }
     }
 }

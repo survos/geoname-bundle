@@ -18,23 +18,21 @@ use SplFileObject;
 class HierarchyImport extends GeoNameImport
 {
 
-
-
     /**
      * @param string $filePath
      * @param callable|null $progress
      * @return bool
      * @author Chris Bednarczyk <chris@tourradar.com>
      */
-    protected function _import($filePath, callable $progress = null)
+    public function import($filePath, callable $progress = null): bool
     {
 
         $avrOneLineSize = 29.4;
         $batchSize = 10000;
 
-        if($batchSize > 1){ //temporarly
-            return true;
-        }
+//        if($batchSize > 1){ //temporarly
+////            return true;
+//        }
         $connection = $this->em->getConnection();
 
         $fileInside = basename($filePath, ".zip") . '.txt';
@@ -57,8 +55,9 @@ class HierarchyImport extends GeoNameImport
 
 
         $dbType = $connection->getDatabasePlatform()->getName();
+        $connection->beginTransaction();
 
-        $connection->exec("START TRANSACTION");
+//        $connection->exec("START TRANSACTION");
 
         $pos = 0;
 
@@ -73,12 +72,14 @@ class HierarchyImport extends GeoNameImport
                 continue;
             }
             if (!isset($csv[0]) || !is_numeric($csv[0])) {
+                dd($csv);
                 continue;
             }
 
             $row = array_map('trim', $csv);
 
             if(!isset($row[0]) || !isset($row[1])){
+                dd($row);
                 continue;
             }
 
@@ -89,11 +90,14 @@ class HierarchyImport extends GeoNameImport
 
 
             $query = $queryBuilder->values([
-
+//                $geoNameId,
+//                $geoNameId2
             ]);
 
 
             $buffer[] = $this->insertToReplace($query, $dbType);
+            dump($query, $queryBuilder, $dbType, $buffer, $fileInside) ;
+            assert(false);
 
             $pos++;
 
@@ -106,7 +110,8 @@ class HierarchyImport extends GeoNameImport
         }
 
         !empty($buffer) &&  $this->save($buffer);;
-        $connection->exec('COMMIT');
+//        $connection->exec('COMMIT');
+        $connection->commit();
 
         return true;
     }

@@ -36,32 +36,14 @@ class CountryImport implements ImportInterface
 
 
     /**
-     * @param  string $filePath
-     * @param callable|null $progress
-     * @return Promise|\GuzzleHttp\Promise\PromiseInterface
-     * @author Chris Bednarczyk <chris@tourradar.com>
-     */
-    public function import($filePath, callable $progress = null)
-    {
-        $self = $this;
-        /** @var Promise $promise */
-        $promise = (new Promise(function () use ($filePath, $progress, $self, &$promise) {
-            $promise->resolve(
-                $self->_import($filePath, $progress)
-            );
-        }));
-
-        return $promise;
-    }
-
-    /**
      * @param string $filePath
      * @param callable|null $progress
      * @return bool
      * @author Chris Bednarczyk <chris@tourradar.com>
      */
-    protected function _import($filePath, callable $progress = null)
+    public function import($filePath, callable $progress = null): bool
     {
+        assert(is_file($filePath), $filePath);
         $file = new SplFileObject($filePath);
         $file->setFlags(SplFileObject::READ_CSV | SplFileObject::READ_AHEAD | SplFileObject::SKIP_EMPTY | SplFileObject::DROP_NEW_LINE);
         $file->setCsvControl("\t");
@@ -179,7 +161,7 @@ UpdateSelect;
 
         $this->em
             ->getConnection()
-            ->exec($sql);
+            ->executeStatement($sql);
 
 
         return true;

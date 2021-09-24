@@ -1,8 +1,8 @@
 services:
-    bordeux.geoname.import.timezone:
-        class: Bordeux\Bundle\GeoNameBundle\Import\TimeZoneImport
-        arguments: ["@doctrine.orm.default_entity_manager"]
-        public: true
+#    bordeux.geoname.import.timezone:
+#        class: Bordeux\Bundle\GeoNameBundle\Import\TimeZoneImport
+#        arguments: ["@doctrine.orm.default_entity_manager"]
+#        public: true
 
     bordeux.geoname.import.administrative:
         class: Bordeux\Bundle\GeoNameBundle\Import\AdministrativeImport
@@ -29,5 +29,6 @@ services:
     #auto register all commands
     bordeux.geoname.command.import:
         class: Bordeux\Bundle\GeoNameBundle\Command\ImportCommand
+        arguments: ["@bordeux.geoname.import.hierarchy"]
         tags:
               - { name: console.command }

@@ -11,6 +11,8 @@ use Doctrine\ORM\Mapping as ORM;
  *
  * @ORM\Table(name="geo__name_hierarchy")
  * @ORM\Entity()
+ *
+ * @deprecated "no longer used, add parent/child directly in each class.
  */
 class Hierarchy
 {

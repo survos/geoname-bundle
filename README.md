@@ -89,10 +89,8 @@ Usage:
   bordeux:geoname:import [options]
 
 Options:
-  -a, --archive[=ARCHIVE]                   Archive to GeoNames [default: "http://download.geonames.org/export/dump/allCount
-ries.zip"]
-  -t, --timezones[=TIMEZONES]               Timezones file [default: "http://download.geonames.org/export/dump/timeZones.txt
-"]
+  -a, --archive[=ARCHIVE]                   Archive to GeoNames [default: "http://download.geonames.org/export/dump/allCountries.zip"]
+  -t, --timezones[=TIMEZONES]               Timezones file [default: "http://download.geonames.org/export/dump/timeZones.txt"]
   -o, --download-dir[=DOWNLOAD-DIR]         Download dir
   -h, --help                                Display this help message
   -q, --quiet                               Do not output any message
@@ -102,14 +100,10 @@ ries.zip"]
   -n, --no-interaction                      Do not ask any interactive question
   -e, --env=ENV                             The environment name [default: "dev"]
       --no-debug                            Switches off debug mode
-  -a1, --admin1-codes[=ADMIN1-CODES]        Admin 1 Codes file [default: "http://download.geonames.org/export/dump/admin1Cod
-esASCII.txt"]
-  -a2, --admin2-codes[=ADMIN2-CODES]        Admin 2 Codes file [default: "http://download.geonames.org/export/dump/admin2Cod
-es.txt"]
-  -lc, --languages-codes[=LANGUAGES-CODES]  Admin 2 Codes file [default: "http://download.geonames.org/export/dump/iso-langu
-agecodes.txt"]
-  -v|vv|vvv, --verbose                      Increase the verbosity of messages: 1 for normal output, 2 for more verbose outp
-ut and 3 for debug
+  -a1, --admin1-codes[=ADMIN1-CODES]        Admin 1 Codes file [default: "http://download.geonames.org/export/dump/admin1CodesASCII.txt"]
+  -a2, --admin2-codes[=ADMIN2-CODES]        Admin 2 Codes file [default: "http://download.geonames.org/export/dump/admin2Codes.txt"]
+  -lc, --languages-codes[=LANGUAGES-CODES]  Admin 2 Codes file [default: "http://download.geonames.org/export/dump/iso-languagecodes.txt"]
+  -v|vv|vvv, --verbose                      Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
   Import GeoNames
