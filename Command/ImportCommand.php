@@ -11,6 +11,7 @@ use Bordeux\Bundle\GeoNameBundle\Import\ImportInterface;
 use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpClient\HttpClient;
 
 use Symfony\Component\Console\Command\Command;
@@ -28,14 +29,13 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class ImportCommand extends Command implements ContainerAwareInterface
 {
 
-    private HierarchyImport $hierarchyImport;
+    private string $endpoint;
 
     public function __construct(
-        HierarchyImport $hierarchyImport, string $name = null)
+        private ParameterBagInterface $bag,
+        private CountryImport $countryImport, string $name = null)
     {
-
         parent::__construct($name);
-        $this->hierarchyImport = $hierarchyImport;
     }
 
     use ContainerAwareTrait;
@@ -57,55 +57,8 @@ class ImportCommand extends Command implements ContainerAwareInterface
 
         $this
             ->setName('bordeux:geoname:import')
-            ->addOption(
-                'archive',
-                'a',
-                InputOption::VALUE_OPTIONAL,
-                "Archive to GeoNames",
-                'http://download.geonames.org/export/dump/allCountries.zip'
-            )
-            ->addOption(
-                'timezones',
-                't',
-                InputOption::VALUE_OPTIONAL,
-                "Timezones file",
-                'http://download.geonames.org/export/dump/timeZones.txt'
-            )
-            ->addOption(
-                'admin1-codes',
-                'a1',
-                InputOption::VALUE_OPTIONAL,
-                "Admin 1 Codes file",
-                'http://download.geonames.org/export/dump/admin1CodesASCII.txt'
-            )
-            ->addOption(
-                'hierarchy',
-                'hi',
-                InputOption::VALUE_OPTIONAL,
-                "Hierarchy ZIP file",
-                'http://download.geonames.org/export/dump/hierarchy.zip'
-            )
-            ->addOption(
-                'admin2-codes',
-                'a2',
-                InputOption::VALUE_OPTIONAL,
-                "Admin 2 Codes file",
-                'http://download.geonames.org/export/dump/admin2Codes.txt'
-            )
-            ->addOption(
-                'languages-codes',
-                'lc',
-                InputOption::VALUE_OPTIONAL,
-                "Admin 2 Codes file",
-                'http://download.geonames.org/export/dump/iso-languagecodes.txt'
-            )
-            ->addOption(
-                'country-info',
-                'ci',
-                InputOption::VALUE_OPTIONAL,
-                "Country info file",
-                'http://download.geonames.org/export/dump/countryInfo.txt'
-            )
+            ->setDescription('Import GeoNames into NestedTree format, flush after each hierarchy.')
+            ->addOption('endpoint', 'url', InputOption::VALUE_OPTIONAL, 'Geonames endpoint', 'http://download.geonames.org/export/dump/')
             ->addOption(
                 'download-dir',
                 'o',
@@ -113,7 +66,58 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 "Download dir",
                 null
             )
-            ->addOption('countries', null, InputOption::VALUE_NEGATABLE, 'import counries-info', false)
+
+            ->addOption('countries', 'ci', InputOption::VALUE_NEGATABLE, 'import counries-info', false)
+            ->addOption('timezones', 'tz', InputOption::VALUE_NEGATABLE, 'import timezones', false)
+            ->addOption(
+                'country-info',
+                'ci-file',
+                InputOption::VALUE_OPTIONAL,
+                "Country info file",
+                'countryInfo.txt'
+            )
+            ->addOption(
+                'archive',
+                'a',
+                InputOption::VALUE_OPTIONAL,
+                "Archive to GeoNames",
+                'allCountries.zip'
+            )
+            ->addOption(
+                'timezones-file',
+                'tz-file',
+                InputOption::VALUE_OPTIONAL,
+                "Timezones file",
+                'timeZones.txt'
+            )
+            ->addOption(
+                'admin1-codes',
+                'a1',
+                InputOption::VALUE_OPTIONAL,
+                "Admin 1 Codes file",
+                'admin1CodesASCII.txt'
+            )
+            ->addOption(
+                'hierarchy',
+                'hi',
+                InputOption::VALUE_OPTIONAL,
+                "Hierarchy ZIP file",
+                'hierarchy.zip'
+            )
+            ->addOption(
+                'admin2-codes',
+                'a2',
+                InputOption::VALUE_OPTIONAL,
+                "Admin 2 Codes file",
+                'admin2Codes.txt'
+            )
+            ->addOption(
+                'languages-codes',
+                'lc',
+                InputOption::VALUE_OPTIONAL,
+                "Admin 2 Codes file",
+                'iso-languagecodes.txt'
+            )
             ->addOption(
                 "skip-admin1",
                 null,
@@ -139,7 +143,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 '',
                 false
             )
-            ->setDescription('Import GeoNames');
+            ;
     }
 
     /**
@@ -149,26 +153,27 @@ class ImportCommand extends Command implements ContainerAwareInterface
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->endpoint = $input->getOption('endpoint');
 
         $downloadDir = $input->getOption('download-dir') ?:
-            $this->getContainer()->getParameter("kernel.cache_dir") . DIRECTORY_SEPARATOR . 'bordeux/geoname';
-
+            $this->bag->get("kernel.cache_dir") . DIRECTORY_SEPARATOR . 'geoname';
 
         !file_exists($downloadDir) && mkdir($downloadDir, 0700, true);
-
 
         $downloadDir = realpath($downloadDir);
 
 
         //timezones
-        $timezones = $input->getOption('timezones');
-        $timezonesLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($timezones);
+        if ($input->getOption('timezones')) {
+            $timezones = $input->getOption('timezones');
+            $timezonesLocal = $downloadDir . DIRECTORY_SEPARATOR . basename($timezones);
 
-        $this->downloadWithProgressBar(
-            $timezones,
-            $timezonesLocal,
-            $output
-        );
+            $this->downloadWithProgressBar(
+                $timezones,
+                $timezonesLocal,
+                $output
+            );
+        }
 
 
         // country-info
@@ -182,17 +187,15 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 $output
             );
 
-            //countries import
             $this->importWithProgressBar(
-                $this->getContainer()->get("bordeux.geoname.import.country"),
+                $this->countryImport,
                 $countryInfoLocal,
                 "Importing Countries",
                 $output
             );
-
-
-
         }
+
+        return self::SUCCESS;
 
         //importing
 
@@ -279,6 +282,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
         }
 
 
+        if (0)
         if (!$input->getOption("skip-hierarchy")) {
             // archive
             $archive = $input->getOption('hierarchy');
@@ -337,6 +341,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
         )) {
             $progress->finish();
         }
+
         return $result;
     }
 
@@ -348,8 +353,9 @@ class ImportCommand extends Command implements ContainerAwareInterface
      * @return \GuzzleHttp\Promise\PromiseInterface
      * @author Chris Bednarczyk <chris@tourradar.com>
      */
-    public function downloadWithProgressBar($url, $saveAs, OutputInterface $output)
+    public function downloadWithProgressBar($filename, $saveAs, OutputInterface $output)
     {
+        $url =  $this->endpoint . $filename;
         if (file_exists($saveAs)) {
             $output->writeln(pathinfo($saveAs, PATHINFO_FILENAME) . " exists in the cache.");
         } else {

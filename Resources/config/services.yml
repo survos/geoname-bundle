@@ -29,6 +29,8 @@ services:
     #auto register all commands
     bordeux.geoname.command.import:
         class: Bordeux\Bundle\GeoNameBundle\Command\ImportCommand
-        arguments: ["@bordeux.geoname.import.hierarchy"]
+        arguments:
+            - "@parameter_bag"
+            - "@bordeux.geoname.import.country"
         tags:
               - { name: console.command }

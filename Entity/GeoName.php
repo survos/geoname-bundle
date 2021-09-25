@@ -163,12 +163,12 @@ class GeoName
 
 
 
-    /**
-     * @var Hierarchy[]
-     *
-     * @ORM\OneToMany(targetEntity="Bordeux\Bundle\GeoNameBundle\Entity\Hierarchy", mappedBy="child")
-     */
-    protected $parents;
+//    /**
+//     * @var Hierarchy[]
+//     *
+//     * @ORM\OneToMany(targetEntity="Bordeux\Bundle\GeoNameBundle\Entity\Hierarchy", mappedBy="child")
+//     */
+//    protected $parents;
 
 
     /**
