@@ -4,6 +4,8 @@
 namespace Bordeux\Bundle\GeoNameBundle\Import;
 
 
+use Bordeux\Bundle\GeoNameBundle\Entity\Administrative;
+use Bordeux\Bundle\GeoNameBundle\Entity\GeoName;
 use Bordeux\Bundle\GeoNameBundle\Entity\Timezone;
 use Doctrine\Bundle\DoctrineBundle\Registry;
 use Doctrine\DBAL\Query\QueryBuilder;
@@ -57,7 +59,7 @@ class GeoNameImport implements ImportInterface
         $fieldsNames = $this->getFieldNames();
 
         $geoNameTableName = $this->em
-            ->getClassMetadata("BordeuxGeoNameBundle:GeoName")
+            ->getClassMetadata(GeoName::class)
             ->getTableName();
 
         $timezoneTableName = $this->em
@@ -65,13 +67,13 @@ class GeoNameImport implements ImportInterface
             ->getTableName();
 
         $administrativeTableName = $this->em
-            ->getClassMetadata("BordeuxGeoNameBundle:Administrative")
+            ->getClassMetadata(Administrative::class)
             ->getTableName();
 
 
         $dbType = $connection->getDatabasePlatform()->getName();
 
-        $connection->exec("START TRANSACTION");
+        $connection->beginTransaction();
 
         $pos = 0;
 
@@ -160,7 +162,7 @@ class GeoNameImport implements ImportInterface
         }
 
         !empty($buffer) && $this->save($buffer);;
-        $connection->exec('COMMIT');
+        $connection->commit();
 
         return true;
     }

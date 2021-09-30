@@ -195,7 +195,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
             );
         }
 
-        return self::SUCCESS;
+//        return self::SUCCESS;
 
         //importing
 
