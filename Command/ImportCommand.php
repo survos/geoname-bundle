@@ -33,7 +33,8 @@ class ImportCommand extends Command implements ContainerAwareInterface
 
     public function __construct(
         private ParameterBagInterface $bag,
-        private CountryImport $countryImport, string $name = null)
+        private CountryImport $countryImport,
+        string $name = null)
     {
         parent::__construct($name);
     }

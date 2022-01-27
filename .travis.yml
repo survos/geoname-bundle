@@ -9,25 +9,23 @@ cache:
 
 addons:
   postgresql: "9.6"
-  
+
 services:
   - mysql
   - postgresql
-  
+
 php:
-  - 7.0
-  - 7.1
-  - 7.2
+  - 7.3
+  - 7.4
+  - 8.0
   - nightly
-  
+
 matrix:
   include:
-    - php: 5.6
-      env: SYMFONY_VERSION="2.8.*@dev"
-    - php: 5.6
-      env: SYMFONY_VERSION="3.0.*@dev"
-    - php: 7.1
-      env: SYMFONY_VERSION="3.4"
+    - php: 7.4
+      env: SYMFONY_VERSION="5.*"
+    - php: 8.0
+      env: SYMFONY_VERSION="5.*"
 
 env:
   global:
@@ -36,7 +34,7 @@ env:
     - DATABASE_DRIVER="pdo_mysql"
     - PGUSER=postgres
     - PGDATABASE=postgres
-    
+
   matrix:
     - DATABASE_DRIVER="pdo_pgsql"
     - DATABASE_DRIVER="pdo_mysql"
