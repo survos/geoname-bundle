@@ -12,19 +12,20 @@
         }
     ],
     "require": {
-        "php": ">=5.5.9",
-        "symfony/framework-bundle": "~2.7|~3.0|~4.0|^5",
-        "symfony/console": "~2.7|~3.0|~4.0|^5",
-        "symfony/dependency-injection": "~2.7|~3.0|~4.0|^5",
-        "doctrine/doctrine-bundle": ">=1.6",
-        "guzzlehttp/guzzle": "~6.0",
-		"guzzlehttp/promises": ">=1.0"
+        "php": ">=8.0",
+        "ext-zip": "*",
+        "doctrine/doctrine-bundle": "^2.0",
+        "guzzlehttp/guzzle": "^6.0 || ^7.0",
+        "symfony/console": "^5.0 || ^6.0"
     },
     "require-dev": {
-        "satooshi/php-coveralls": "^1.0",
-        "phpunit/phpunit": "*",
         "doctrine/orm": "^2.5",
-        "symfony/yaml": "~2.7|~3.0|^4|^5"
+        "ergebnis/composer-normalize": "^2.26",
+        "phpunit/phpunit": "^9.5.20",
+        "roave/security-advisories": "dev-latest",
+        "symfony/framework-bundle": "^5.0 || ^6.0",
+        "symfony/yaml": "^5.0 || ^6.0",
+        "phpstan/phpstan": "^1.7"
     },
     "autoload": {
         "psr-4": { "Bordeux\\Bundle\\GeoNameBundle\\": "" }
@@ -32,6 +33,24 @@
     "extra": {
         "branch-alias": {
             "dev-master": "1.0.x-dev"
+        }
+    },
+    "scripts": {
+        "cs:check": [
+            "@php -r \"file_exists('bin/phpcs') || copy('https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar', 'vendor/bin/phpcs');\"",
+            "@php ./vendor/bin/phpcs"
+        ],
+        "cs:fix": [
+            "@php -r \"file_exists('bin/phpcbf') || copy('https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar', 'vendor/bin/phpcbf');\"",
+            "@php ./vendor/bin/phpcbf"
+        ],
+        "tests": [
+            "@php ./vendor/bin/phpunit"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true
         }
     }
 }
