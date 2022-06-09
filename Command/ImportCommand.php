@@ -14,6 +14,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpClient\HttpClient;
 
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise\Promise;
+use GuzzleHttp\Psr7\Uri;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
@@ -46,10 +49,6 @@ class ImportCommand extends Command implements ContainerAwareInterface
      */
     const PROGRESS_FORMAT = '%current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% Mem: %memory:6s% %message%';
 
-    private function getContainer(): ContainerInterface
-    {
-        return $this->container;
-    }
     /**
      * Configuration method
      */
@@ -356,6 +355,7 @@ class ImportCommand extends Command implements ContainerAwareInterface
      */
     public function downloadWithProgressBar($filename, $saveAs, OutputInterface $output)
     {
+<<<<<<< HEAD
         $url =  $this->endpoint . $filename;
         if (file_exists($saveAs)) {
             $output->writeln(pathinfo($saveAs, PATHINFO_FILENAME) . " exists in the cache.");
@@ -373,6 +373,40 @@ class ImportCommand extends Command implements ContainerAwareInterface
                     $progress->setProgress((int)($percent * 100));
                 }
             );
+=======
+        if (file_exists($saveAs)) {
+            $output->writeln($saveAs . " exists in the cache.");
+
+            $promise = new Promise();
+            $promise->then(
+            // $onFulfilled
+                function ($value) {
+                    echo 'The promise was fulfilled.';
+                },
+                // $onRejected
+                function ($reason) {
+                    echo 'The promise was rejected.';
+                }
+            );
+
+            $promise->resolve("In cache!");
+            return $promise;
+        }
+
+        $progress = new ProgressBar($output, 100);
+        $progress->setFormat(self::PROGRESS_FORMAT);
+        $progress->setMessage("Start downloading {$url}");
+        $progress->setRedrawFrequency(1);
+        $progress->start();
+
+        return $this->download(
+            $url,
+            $saveAs,
+            function ($percent) use ($progress) {
+                $progress->setProgress((int)($percent * 100));
+            }
+        )->then(function () use ($progress) {
+>>>>>>> symfony5
             $progress->finish();
         }
 

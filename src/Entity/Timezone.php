@@ -156,6 +156,10 @@ class Timezone implements Stringable
         return $this;
     }
 
+    public function __toString() {
+        return $this->getTimezone();
+    }
+
 
     /**
      * @return string
