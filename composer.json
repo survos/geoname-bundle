@@ -18,7 +18,7 @@
         "php": ">=8.0",
         "symfony/framework-bundle": "^5.4|^6.0",
         "symfony/http-client": "^5.4|^6.0",
-        "symfony/dependency-injection": "^4.4|^5",
+        "symfony/dependency-injection": "^5.4|^6",
         "ext-zip": "*",
         "doctrine/doctrine-bundle": "^1.6 || ^2.0",
         "guzzlehttp/guzzle": "^6.0 || ^7.0",
