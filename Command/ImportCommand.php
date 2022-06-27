@@ -353,27 +353,25 @@ class ImportCommand extends Command implements ContainerAwareInterface
      * @return \GuzzleHttp\Promise\PromiseInterface
      * @author Chris Bednarczyk <chris@tourradar.com>
      */
-    public function downloadWithProgressBar($filename, $saveAs, OutputInterface $output)
+    public function downloadWithProgressBar(string $url, $saveAs, OutputInterface $output)
     {
-<<<<<<< HEAD
-        $url =  $this->endpoint . $filename;
-        if (file_exists($saveAs)) {
-            $output->writeln(pathinfo($saveAs, PATHINFO_FILENAME) . " exists in the cache.");
-        } else {
-            $progress = new ProgressBar($output, 100);
-            $progress->setFormat(self::PROGRESS_FORMAT);
-            $progress->setMessage("Start downloading {$url}");
-            $progress->setRedrawFrequency(1);
-            $progress->start();
-
-            $this->download(
-                $url,
-                $saveAs,
-                function ($percent) use ($progress) {
-                    $progress->setProgress((int)($percent * 100));
-                }
-            );
-=======
+//        $url =  $this->endpoint . $filename;
+//        if (file_exists($saveAs)) {
+//            $output->writeln(pathinfo($saveAs, PATHINFO_FILENAME) . " exists in the cache.");
+//        } else {
+//            $progress = new ProgressBar($output, 100);
+//            $progress->setFormat(self::PROGRESS_FORMAT);
+//            $progress->setMessage("Start downloading {$url}");
+//            $progress->setRedrawFrequency(1);
+//            $progress->start();
+//
+//            $this->download(
+//                $url,
+//                $saveAs,
+//                function ($percent) use ($progress) {
+//                    $progress->setProgress((int)($percent * 100));
+//                }
+//            );
         if (file_exists($saveAs)) {
             $output->writeln($saveAs . " exists in the cache.");
 
@@ -406,7 +404,6 @@ class ImportCommand extends Command implements ContainerAwareInterface
                 $progress->setProgress((int)($percent * 100));
             }
         )->then(function () use ($progress) {
->>>>>>> symfony5
             $progress->finish();
         }
 
